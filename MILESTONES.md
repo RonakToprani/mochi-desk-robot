@@ -1,5 +1,48 @@
 # Mochi Desk Robot — Build Milestones
 
+## Session History
+
+### Session 1 — Project Setup + Touch Driver (Complete)
+- Created mochi-desk-robot repo with PlatformIO structure
+- Implemented CST820 touch controller with 5 zones and 7 gestures
+- Emotion state machine with priority system (16 states)
+- Placeholder stubs for display, audio, IMU, phrase detection
+
+### Session 2 — Emotion Tag Sync (2026-03-08)
+- **Goal**: Intercept Xiaozhi WebSocket emotion packets and trigger GIF BEFORE TTS
+- **Status**: Code complete, syntax validated. Full build/flash pending ESP-IDF upgrade.
+
+**Files created:**
+- `src/mochi/mochi_emotion.h` — 15-state MochiEmotion enum with string/emoji mappers
+  - EmotionFromString(): maps Xiaozhi emotion strings (smile, sad, fear, etc.)
+  - EmotionFromEmoji(): maps 50+ emoji characters to MochiEmotion values
+  - MochiEmotionGifPath(): resolves SPIFFS GIF paths
+- `src/mochi/mochi_display.h` — GIF display engine interface
+- `src/mochi/mochi_display.cc` — FreeRTOS task (Core 0), mutex-protected GIF switching
+- `xiaozhi-patches/session2-emotion-sync.patch` — Patches for xiaozhi-esp32:
+  - application.cc: LLM emotion intercept + state change hooks with timestamped logging
+  - board file: mochi_display_init() call after LCD panel creation
+  - CMakeLists.txt: added mochi/ source and include dirs
+
+**Timing verification (by code analysis):**
+- LLM emotion packet arrives via WebSocket → parsed in OnIncomingJson callback
+- `Schedule()` pushes emotion handler to FIFO deque
+- TTS start packet arrives later → pushes SetDeviceState(kDeviceStateSpeaking) to same deque
+- FIFO ordering guarantees: EMOTION_TAG log → GIF_LOAD log → STATE: speaking log
+
+**Blocking issue:**
+- ESP-IDF >= v5.5.2 required for xiaozhi-esp32 build; local install is v5.1.4
+- Next session: upgrade ESP-IDF, full build, flash, serial log verification
+
+**Edge cases handled:**
+- Missing emotion field → falls back to kThinking
+- Unknown emoji → falls back to kIdle
+- Back-to-back emotion packets → second wins (no crash, mutex-protected)
+- Missing GIF file on SPIFFS → logs warning, falls back to idle.gif
+- Same emotion re-set → no-op (skip redundant GIF restart)
+
+---
+
 ## Phase 1: Offline Autonomous Desk Pet
 
 - [ ] **M0 — Dev Environment**
@@ -15,7 +58,7 @@
   - Display centered on black background (200x200 GIF on 466x466 screen)
   - Test: See Mochi face animated on screen
 
-- [ ] **M2 — Touch**
+- [x] **M2 — Touch** (Session 1)
   - Touch zones triggering different animations
   - Init CST820 on I2C, map X/Y to 5 zones
   - Trigger HAPPY on head tap, LOVED on long-press
@@ -63,3 +106,11 @@
   - Add all 14 sound clips, ensure all 15 GIFs loaded
   - Test 48hr continuous run for stability
   - Test: Full personality loop feels alive and responsive
+
+## Phase 2: Xiaozhi Integration (LLM + Cloud)
+
+- [x] **S2 — Emotion Tag Sync** (Session 2 — code complete, pending build)
+  - Intercept WebSocket emotion packets in application.cc
+  - Map emotion strings + emoji to 15 MochiEmotion states
+  - GIF display engine with FreeRTOS task on Core 0
+  - Verify: emotion GIF switches BEFORE TTS audio starts

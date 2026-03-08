@@ -105,6 +105,57 @@ Mochi reacts to touch, physical gestures, voice commands, and ambient sound — 
 
 ## Architecture
 
+### Emotion Sync Flow (Session 2)
+
+The emotion routing system ensures GIF animations switch BEFORE TTS audio begins.
+This is guaranteed by the Xiaozhi WebSocket protocol: the LLM emotion packet always
+precedes the TTS start packet. Both are processed through Schedule() (FIFO deque),
+so ordering is preserved.
+
+```
+Server sends emotion packet
+  {"type":"llm","text":"...","emotion":"smile"}
+          |
+          v
+WebSocket OnData() --> cJSON_Parse()
+          |
+          v
+application.cc OnIncomingJson callback
+  +-- EmotionFromString("smile") --> MochiEmotion::kHappy
+  +-- EmotionFromEmoji(text) as fallback
+  +-- ESP_LOGI("MOCHI", "EMOTION_TAG: smile -> GIF switching")
+          |
+          v
+Schedule() pushes to main task deque  <--- FIFO order preserved
+          |
+          v
+Main loop processes scheduled task:
+  +-- mochi_display_set_emotion(kHappy)  --> GIF_LOAD: happy.gif
+  +-- display->SetEmotion("smile")       --> Xiaozhi LVGL emoji (preserved)
+          |
+          v
+(Later) Server sends TTS start packet
+  {"type":"tts","state":"start"}
+          |
+          v
+Schedule() pushes SetDeviceState(kDeviceStateSpeaking)
+  +-- ESP_LOGI("MOCHI", "STATE: speaking")   <--- AFTER emotion tag
+
+Serial log verification sequence:
+  1. MOCHI: EMOTION_TAG: smile -> GIF switching
+  2. MOCHI: GIF_LOAD: happy.gif
+  3. MOCHI: STATE: speaking
+```
+
+### Device State to GIF Mapping
+
+| Device State | Mochi GIF | Behavior |
+|---|---|---|
+| kDeviceStateIdle | idle.gif | Default resting face |
+| kDeviceStateListening | listening.gif | Always override to listening |
+| kDeviceStateConnecting | thinking.gif | Show thinking while connecting |
+| kDeviceStateSpeaking | (no change) | Preserves LLM emotion GIF |
+
 ### Two-Core Task Split (FreeRTOS)
 
 | Core | Responsibility | Priority |
@@ -140,29 +191,60 @@ Mochi reacts to touch, physical gestures, voice commands, and ambient sound — 
 ```
 mochi-desk-robot/
 ├── config/
-│   └── pins.h              # Single source of truth for all GPIO defines
+│   ├── pins.h               # Single source of truth for all GPIO defines
+│   └── lv_conf.h            # LVGL configuration
 ├── src/
-│   ├── main.cpp             # Entry point
-│   ├── emotion_state.h/cpp  # Personality & emotion state machine
-│   ├── display.h/cpp        # AMOLED display + LVGL + GIF playback
-│   ├── touch.h/cpp          # CST820 touch zones & gestures
-│   ├── imu.h/cpp            # QMI8658 accelerometer/gyroscope
-│   ├── audio.h/cpp          # ES8311 codec (speaker + mic)
-│   └── phrase_detect.h/cpp  # ESP-SR wake word + commands
+│   ├── main.cpp              # Entry point
+│   ├── emotion_state.h/cpp   # Personality & emotion state machine
+│   ├── display.h/cpp         # AMOLED display + LVGL + GIF playback
+│   ├── touch.h/cpp           # CST820 touch zones & gestures
+│   ├── imu.h/cpp             # QMI8658 accelerometer/gyroscope
+│   ├── audio.h/cpp           # ES8311 codec (speaker + mic)
+│   ├── phrase_detect.h/cpp   # ESP-SR wake word + commands
+│   └── mochi/                # Session 2: Emotion tag sync
+│       ├── mochi_emotion.h   # 15-state enum + string/emoji mappers
+│       ├── mochi_display.h   # GIF display engine interface
+│       └── mochi_display.cc  # GIF engine (FreeRTOS task, Core 0)
+├── xiaozhi-patches/
+│   └── session2-emotion-sync.patch  # Patches for xiaozhi-esp32 application.cc
 ├── assets/
-│   ├── sounds/              # PCM sound clips
-│   └── gifs/                # Mochi expression GIFs
-├── platformio.ini           # Build configuration
-├── MILESTONES.md            # M0-M9 build checklist
-└── README.md                # This file
+│   ├── sounds/               # PCM sound clips (14 clips, 16kHz mono)
+│   └── gifs/                 # Mochi expression GIFs (15 emotions, 150x150)
+├── platformio.ini            # Build configuration
+├── MILESTONES.md             # Session build checklist
+└── README.md                 # This file
 ```
 
 ## Building
 
-Requires [PlatformIO](https://platformio.org/).
+### Xiaozhi-ESP32 Integration (Primary Build — ESP-IDF)
+
+The firmware base is [xiaozhi-esp32](https://github.com/78/xiaozhi-esp32) (MIT license).
+Mochi-specific files in `src/mochi/` are additive hooks that integrate into the xiaozhi framework.
 
 ```bash
-# Build (do not flash yet — verify I2S pins from schematic first)
+# 1. Clone xiaozhi-esp32
+git clone https://github.com/78/xiaozhi-esp32.git
+cd xiaozhi-esp32
+
+# 2. Copy Mochi files into the xiaozhi tree
+cp -r <mochi-desk-robot>/src/mochi/ main/mochi/
+
+# 3. Apply patches to application.cc, board file, CMakeLists.txt
+git apply <mochi-desk-robot>/xiaozhi-patches/session2-emotion-sync.patch
+
+# 4. Build with ESP-IDF (requires >= v5.5.2)
+idf.py set-target esp32s3
+idf.py -DBOARD=waveshare-s3-touch-amoled-1.32 build
+
+# 5. Flash and monitor
+idf.py flash monitor
+```
+
+### Standalone PlatformIO Build (Touch/IMU Development)
+
+```bash
+# Build (standalone mode — no WiFi/LLM features)
 pio run
 
 # Flash
