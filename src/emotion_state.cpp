@@ -43,8 +43,27 @@ void emotion_state_set(EmotionState new_state) {
     }
 }
 
+void emotion_state_force_set(EmotionState new_state) {
+    if (new_state >= EMOTION_COUNT) return;
+    if (new_state == current_state) return;
+    Serial.printf("[EmotionState] %d -> %d (forced)\n", current_state, new_state);
+    current_state = new_state;
+}
+
 EmotionState emotion_state_get() {
     return current_state;
+}
+
+static const char* state_names[EMOTION_COUNT] = {
+    "IDLE", "HAPPY", "EXCITED", "LOVED", "BORED",
+    "ATTENTION_SEEK", "LONELY", "SLEEPY", "SCARED",
+    "STARTLED", "RELIEVED", "THINKING", "TALKING",
+    "ANGRY", "CONFUSED", "SAD"
+};
+
+const char* emotion_state_name(EmotionState state) {
+    if (state >= EMOTION_COUNT) return "UNKNOWN";
+    return state_names[state];
 }
 
 uint8_t emotion_state_priority(EmotionState state) {

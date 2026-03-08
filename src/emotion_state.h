@@ -30,7 +30,9 @@ typedef enum {
 
 void emotion_state_init();
 void emotion_state_set(EmotionState new_state);
+void emotion_state_force_set(EmotionState new_state);  // Bypass priority check
 EmotionState emotion_state_get();
+const char* emotion_state_name(EmotionState state);
 uint8_t emotion_state_priority(EmotionState state);
 void emotion_state_reset_idle_timer();
 

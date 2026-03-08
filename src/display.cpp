@@ -22,3 +22,9 @@ void display_update() {
 void display_set_brightness(uint8_t level) {
     // TODO: M1 — Set AMOLED brightness (0-255)
 }
+
+void display_show_emotion(EmotionState state) {
+    // M2 hook — switch displayed animation to match emotion
+    // Full GIF playback will be wired in when M1 display driver is active
+    Serial.printf("[Display] Show animation: %s\n", emotion_state_name(state));
+}
