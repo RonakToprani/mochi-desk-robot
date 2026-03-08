@@ -13,6 +13,61 @@
 #include "audio.h"
 #include "phrase_detect.h"
 
+// -----------------------------------------------------------------------------
+// Touch → Emotion + Display wiring
+// Called from the touch FreeRTOS task (Core 1)
+// -----------------------------------------------------------------------------
+static void on_touch_event(const TouchEvent *ev) {
+    emotion_state_reset_idle_timer();
+
+    switch (ev->gesture) {
+        case GESTURE_TAP:
+            // Head tap or face tap → HAPPY
+            if (ev->zone == ZONE_HEAD_TOP || ev->zone == ZONE_FACE_CENTER) {
+                emotion_state_set(EMOTION_HAPPY);
+                display_show_emotion(EMOTION_HAPPY);
+            }
+            break;
+
+        case GESTURE_LONG_PRESS:
+            // Long press on face → LOVED (held)
+            if (ev->zone == ZONE_FACE_CENTER) {
+                emotion_state_set(EMOTION_LOVED);
+                display_show_emotion(EMOTION_LOVED);
+            }
+            break;
+
+        case GESTURE_LONG_PRESS_RELEASE:
+            // Release from loved → HAPPY
+            emotion_state_force_set(EMOTION_HAPPY);
+            display_show_emotion(EMOTION_HAPPY);
+            break;
+
+        case GESTURE_DOUBLE_TAP:
+            emotion_state_set(EMOTION_EXCITED);
+            display_show_emotion(EMOTION_EXCITED);
+            break;
+
+        case GESTURE_SWIPE_UP:
+            emotion_state_set(EMOTION_EXCITED);
+            display_show_emotion(EMOTION_EXCITED);
+            break;
+
+        case GESTURE_SWIPE_DOWN:
+            emotion_state_set(EMOTION_SLEEPY);
+            display_show_emotion(EMOTION_SLEEPY);
+            break;
+
+        case GESTURE_TWO_FINGER_TAP:
+            emotion_state_set(EMOTION_CONFUSED);
+            display_show_emotion(EMOTION_CONFUSED);
+            break;
+
+        default:
+            break;
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     delay(500);
@@ -24,6 +79,7 @@ void setup() {
     // Initialize subsystems
     display_init();
     touch_init();
+    touch_register_callback(on_touch_event);
     imu_init();
     audio_init();
     phrase_detect_init();
