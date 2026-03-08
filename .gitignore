@@ -1,0 +1,30 @@
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+.build/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled objects
+*.o
+*.obj
+*.elf
+*.bin
+*.hex
+
+# Secrets / credentials
+.env
+secrets.h
