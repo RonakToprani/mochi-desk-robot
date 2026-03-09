@@ -129,3 +129,14 @@
   - GIF display engine with FreeRTOS task on Core 0
   - Verified: GIF_LOAD triggers in 0ms after EMOTION_TAG (instant)
   - Protocol note: emotion arrives 220-330ms after TTS starts
+
+- [x] **S3 — Reactive Sounds** (Session 3 — VERIFIED ON HARDWARE)
+  - PCM sound engine: 16kHz mono → 24kHz resampling via linear interpolation
+  - ES8311 codec sharing: state-gated writes during idle (no mutex needed)
+  - Dedicated FreeRTOS task on Core 1, priority 5, 4KB stack
+  - 14 sound clips mapped to emotions via personality layer
+  - Emotion → sound mapping with purr_loop special case (loops on kLoved)
+  - Volume control via fixed-point sample scaling (0-100%)
+  - SPIFFS PCM reader with graceful SOUND_MISSING fallback
+  - Verified: all subsystems init correctly, no crashes, heap stable
+  - Pending: create actual PCM sound files and upload to SPIFFS
