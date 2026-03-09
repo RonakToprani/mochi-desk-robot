@@ -15,10 +15,10 @@ index ebb2139..dda2773 100644
  # Add board common files
  list(APPEND SOURCES
 diff --git a/main/application.cc b/main/application.cc
-index d69d43d..7dfab83 100644
+index d69d43d..2f5a205 100644
 --- a/main/application.cc
 +++ b/main/application.cc
-@@ -10,8 +10,13 @@
+@@ -10,8 +10,14 @@
  #include "assets.h"
  #include "settings.h"
  
@@ -27,12 +27,13 @@ index d69d43d..7dfab83 100644
 +#include "mochi/mochi_display.h"
 +
  #include <cstring>
++#include <cinttypes>
  #include <esp_log.h>
 +#include <esp_timer.h>
  #include <cJSON.h>
  #include <driver/gpio.h>
  #include <arpa/inet.h>
-@@ -557,11 +562,41 @@ void Application::InitializeProtocol() {
+@@ -557,11 +563,41 @@ void Application::InitializeProtocol() {
              }
          } else if (strcmp(type->valuestring, "llm") == 0) {
              auto emotion = cJSON_GetObjectItem(root, "emotion");
@@ -49,8 +50,8 @@ index d69d43d..7dfab83 100644
 -                });
 +                mochi_emotion = EmotionFromString(std::string(emotion->valuestring));
 +                int64_t t = esp_timer_get_time();
-+                ESP_LOGI("MOCHI", "EMOTION_TAG: %s -> GIF switching (t=%" PRId64 "us)",
-+                         emotion->valuestring, t);
++                ESP_LOGI("MOCHI", "EMOTION_TAG: %s -> GIF switching (t=%lldus)",
++                         emotion->valuestring, (long long)t);
              }
 +
 +            // Also try emoji fallback from the "text" field
@@ -77,7 +78,7 @@ index d69d43d..7dfab83 100644
          } else if (strcmp(type->valuestring, "mcp") == 0) {
              auto payload = cJSON_GetObjectItem(root, "payload");
              if (cJSON_IsObject(payload)) {
-@@ -860,7 +895,25 @@ void Application::HandleStateChangedEvent() {
+@@ -860,7 +896,25 @@ void Application::HandleStateChangedEvent() {
      auto display = board.GetDisplay();
      auto led = board.GetLed();
      led->OnStateChanged();
@@ -98,13 +99,13 @@ index d69d43d..7dfab83 100644
 +            case kDeviceStateActivating: state_name = "activating"; break;
 +            default: break;
 +        }
-+        ESP_LOGI("MOCHI", "STATE: %s (t=%" PRId64 "us)", state_name, t);
++        ESP_LOGI("MOCHI", "STATE: %s (t=%lldus)", state_name, (long long)t);
 +    }
 +
      switch (new_state) {
          case kDeviceStateUnknown:
          case kDeviceStateIdle:
-@@ -869,16 +922,25 @@ void Application::HandleStateChangedEvent() {
+@@ -869,16 +923,25 @@ void Application::HandleStateChangedEvent() {
              display->SetEmotion("neutral"); // Then set emotion (wechat mode checks child count)
              audio_service_.EnableVoiceProcessing(false);
              audio_service_.EnableWakeWordDetection(true);
@@ -130,7 +131,7 @@ index d69d43d..7dfab83 100644
              // Make sure the audio processor is running
              if (play_popup_on_listening_ || !audio_service_.IsAudioProcessorRunning()) {
                  // For auto mode, wait for playback queue to be empty before enabling voice processing
-@@ -886,7 +948,7 @@ void Application::HandleStateChangedEvent() {
+@@ -886,7 +949,7 @@ void Application::HandleStateChangedEvent() {
                  if (listening_mode_ == kListeningModeAutoStop) {
                      audio_service_.WaitForPlaybackQueueEmpty();
                  }
@@ -139,7 +140,7 @@ index d69d43d..7dfab83 100644
                  // Send the start listening command
                  protocol_->SendStartListening(listening_mode_);
                  audio_service_.EnableVoiceProcessing(true);
-@@ -899,7 +961,7 @@ void Application::HandleStateChangedEvent() {
+@@ -899,7 +962,7 @@ void Application::HandleStateChangedEvent() {
              // Disable wake word detection in listening mode
              audio_service_.EnableWakeWordDetection(false);
  #endif
@@ -148,7 +149,7 @@ index d69d43d..7dfab83 100644
              // Play popup sound after ResetDecoder (in EnableVoiceProcessing) has been called
              if (play_popup_on_listening_) {
                  play_popup_on_listening_ = false;
-@@ -909,6 +971,10 @@ void Application::HandleStateChangedEvent() {
+@@ -909,6 +972,10 @@ void Application::HandleStateChangedEvent() {
          case kDeviceStateSpeaking:
              display->SetStatus(Lang::Strings::SPEAKING);
  

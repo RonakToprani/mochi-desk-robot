@@ -30,6 +30,7 @@
 
 #include <cstring>
 #include <cstdio>
+#include <cinttypes>
 #include <sys/stat.h>
 
 #include <freertos/FreeRTOS.h>
@@ -107,7 +108,7 @@ static void mochi_display_task(void* arg) {
         MochiEmotionGifPath(new_emotion, gif_path, sizeof(gif_path));
 
         int64_t t_start = esp_timer_get_time();
-        ESP_LOGI(TAG, "GIF_LOAD: %s.gif (t=%" PRId64 "us)", MochiEmotionName(new_emotion), t_start);
+        ESP_LOGI(TAG, "GIF_LOAD: %s.gif (t=%lldus)", MochiEmotionName(new_emotion), (long long)t_start);
 
         // Check if the GIF file exists on SPIFFS
         if (!gif_file_exists(gif_path)) {
