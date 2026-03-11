@@ -42,11 +42,11 @@
 - This means EMOTION_TAG cannot precede STATE:speaking with current protocol
 - Workaround for Session 3: buffer TTS until emotion arrives, or accept slight delay
 
-**Known issues (deferred to Session 3):**
-- SPIFFS not mounted (xiaozhi uses mmap_assets format, not VFS SPIFFS)
-- ESP-IDF nano printf does not support %lld (timestamps show "ldus")
-- Custom wake word ("Hey Mochi") needs Multinet model setup
-- Server-side AI personality responds in Chinese (needs xiaozhi portal config)
+**Known issues (carried forward):**
+- SPIFFS not mounted (xiaozhi uses mmap_assets format, not VFS SPIFFS) — resolved in S3 via mmap
+- ESP-IDF nano printf does not support %lld (timestamps show "ldus") — cosmetic only
+- Custom wake word ("Hey Mochi") needs Multinet model setup — using "Jarvis" for now
+- ~~Server-side AI personality responds in Chinese~~ — FIXED in Session 4 (sdkconfig language)
 
 **Edge cases verified on hardware:**
 - Missing GIF file → GIF_MISSING logged, falls back to idle, graceful skip
@@ -144,3 +144,12 @@
   - State-gating confirmed: sounds blocked during listening/speaking states
   - Rapid cycling stress test: 3×15 emotions at 200ms, no crash, heap stable
   - Stack overflow bug fixed: moved audio buffers from stack to static
+
+- [x] **S4 — Language Fix + Documentation** (Session 4 — 2026-03-10)
+  - Fixed UI language: sdkconfig `CONFIG_LANGUAGE_ZH_CN=y` → `CONFIG_LANGUAGE_EN_US=y`
+  - Display now shows English: "Listening...", "Speaking...", "Connecting..." etc.
+  - AI personality also responds in English (language config affects server comms)
+  - Corrected GPIO pin map in README (display pins were wrong, I2S pins were TBD)
+  - Updated build commands with actual working bash -c wrapper syntax
+  - Updated MEMORY.md and architecture.md for future session continuity
+  - Documented language system: gen_lang.py auto-generates lang_config.h from locale JSON
