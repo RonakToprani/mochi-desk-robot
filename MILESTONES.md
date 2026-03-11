@@ -145,7 +145,7 @@
   - Rapid cycling stress test: 3×15 emotions at 200ms, no crash, heap stable
   - Stack overflow bug fixed: moved audio buffers from stack to static
 
-- [x] **S4 — Language Fix + Documentation** (Session 4 — 2026-03-10)
+- [x] **S4a — Language Fix + Documentation** (Session 4a — 2026-03-10)
   - Fixed UI language: sdkconfig `CONFIG_LANGUAGE_ZH_CN=y` → `CONFIG_LANGUAGE_EN_US=y`
   - Display now shows English: "Listening...", "Speaking...", "Connecting..." etc.
   - AI personality also responds in English (language config affects server comms)
@@ -153,3 +153,32 @@
   - Updated build commands with actual working bash -c wrapper syntax
   - Updated MEMORY.md and architecture.md for future session continuity
   - Documented language system: gen_lang.py auto-generates lang_config.h from locale JSON
+
+- [x] **S4b — Touch Zones + Sound Redesign** (Session 4b — 2026-03-11)
+  - CST816S touch driver via raw I2C on shared bus (addr 0x15, INT GPIO16)
+  - 5 touch zones via polar coordinate classification from screen center (233,233):
+    ```
+          ╭──────────╮
+         ╱  TOP (r>80) ╲
+        │   315°─ ─45°   │
+        │ L ╭─────╮ R   │
+        │ E │ CEN │ I   │
+        │ F │ TER │ G   │
+        │ T ╰─────╯ H   │
+        │   225°─135°    │
+         ╲ BOTTOM(r>80)╱
+          ╰──────────╯
+    ```
+  - 7 software gestures: TAP, LONG_PRESS, DOUBLE_TAP, SWIPE_UP/DOWN/LEFT/RIGHT
+  - Gesture state machine with timing: TAP<300ms, LONG_PRESS>800ms, SWIPE<500ms disp>60px
+  - 180° coordinate rotation to match display flip (`x=465-x, y=465-y`)
+  - FreeRTOS task on Core 0, priority 8, GPIO ISR with binary semaphore
+  - Touch→emotion+sound reactions (no text display — sound + face IS the reaction):
+    - SWIPE_UP (any zone) → trigger AI conversation
+    - CENTER TAP → happy, CENTER LONG_PRESS → loved + purr_loop
+    - CENTER DOUBLE_TAP → excited, TOP TAP → startled, TOP LONG_PRESS → sleepy
+    - SWIPE_DOWN (any zone) → sad, L/R SWIPE → confused + dizzy
+  - Redesigned all 14 PCM sounds: warm harmonics, ADSR envelopes, bell tones, realistic purr
+  - Zero I2C bus conflicts (CST816S + ES8311 share bus cleanly, no mutex needed)
+  - HW verified: all 7 gestures, all 5 zones, coordinate rotation, sound playback, heap stable
+  - Files: mochi_touch.h, mochi_touch.cc, updated mochi_personality.cc, generate_pcm_sounds.py
