@@ -133,10 +133,14 @@
 - [x] **S3 — Reactive Sounds** (Session 3 — VERIFIED ON HARDWARE)
   - PCM sound engine: 16kHz mono → 24kHz resampling via linear interpolation
   - ES8311 codec sharing: state-gated writes during idle (no mutex needed)
-  - Dedicated FreeRTOS task on Core 1, priority 5, 4KB stack
+  - Dedicated FreeRTOS task on Core 1, priority 5, 6KB stack, static buffers
   - 14 sound clips mapped to emotions via personality layer
   - Emotion → sound mapping with purr_loop special case (loops on kLoved)
   - Volume control via fixed-point sample scaling (0-100%)
-  - SPIFFS PCM reader with graceful SOUND_MISSING fallback
-  - Verified: all subsystems init correctly, no crashes, heap stable
-  - Pending: create actual PCM sound files and upload to SPIFFS
+  - Memory-mapped asset reader (mmap_assets format, NOT SPIFFS VFS)
+  - tools/generate_pcm_sounds.py — generates 14 synthetic test tones
+  - tools/repack_assets.py — injects PCM files into mmap_assets binary
+  - HW verified: sigh_relieved, grunt_angry, yelp_scared played through ES8311
+  - State-gating confirmed: sounds blocked during listening/speaking states
+  - Rapid cycling stress test: 3×15 emotions at 200ms, no crash, heap stable
+  - Stack overflow bug fixed: moved audio buffers from stack to static
